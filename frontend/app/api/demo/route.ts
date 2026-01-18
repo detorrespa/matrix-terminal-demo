@@ -1,14 +1,21 @@
 ﻿// frontend/app/api/demo/route.ts
-import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function bad(msg: string, code = 400) {
-  return NextResponse.json({ error: msg }, { status: code });
+function jsonResponse(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
 
-export async function POST(req: NextRequest) {
-  const KEY = process.env.DEMO_OPENAI_API_KEY;
+function bad(msg: string, code = 400) {
+  return jsonResponse({ error: msg }, code);
+}
+
+export async function POST(req: Request) {
+  const KEY = (globalThis as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env?.DEMO_OPENAI_API_KEY;
   if (!KEY) return bad('Demo disabled: missing DEMO_OPENAI_API_KEY', 403);
 
   let body: any;
@@ -33,7 +40,7 @@ export async function POST(req: NextRequest) {
       const msg = data?.error?.message || 'Upstream error';
       return bad(msg, 500);
     }
-    return NextResponse.json(data);
+    return jsonResponse(data);
   } catch (e: any) {
     return bad('Fetch failed', 500);
   }
