@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import styled from 'styled-components'
 import ChatMessage from './ChatMessage'
 import InputArea from './InputArea'
@@ -195,9 +196,11 @@ const ApiKeyInfo = styled.div`
 `
 
 export default function Terminal() {
+  const sp = useSearchParams()
+  const isDemo = sp.get('demo') === '1'
+  const [connected, setConnected] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected')
   const [apiKey, setApiKey] = useState<string>('')
   const [isConfigured, setIsConfigured] = useState<boolean>(false)
   const [apiKeyInput, setApiKeyInput] = useState<string>('')
@@ -211,12 +214,25 @@ export default function Terminal() {
     }
   }, [messages])
 
-  // Check backend connection on mount
+  // Health-check: demo => siempre conectado; si no, ping periódico
   useEffect(() => {
-    if (isConfigured) {
-      checkConnection()
+    if (isDemo) {
+      setConnected(true)
+      return
     }
-  }, [isConfigured])
+    let timer: any
+    const ping = async () => {
+      try {
+        const r = await fetch('/api/health', { cache: 'no-store' })
+        setConnected(r.ok)
+      } catch {
+        setConnected(false)
+      }
+    }
+    ping()
+    timer = setInterval(ping, 15000)
+    return () => clearInterval(timer)
+  }, [isDemo])
 
   // Check demo mode on mount and when URL changes
   useEffect(() => {
@@ -231,26 +247,6 @@ export default function Terminal() {
       window.removeEventListener('popstate', checkDemoMode)
     }
   }, [])
-
-  const checkConnection = async () => {
-    setConnectionStatus('connecting')
-    try {
-      const response = await fetch('http://localhost:8000/api/health', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      
-      if (response.ok) {
-        setConnectionStatus('connected')
-      } else {
-        setConnectionStatus('disconnected')
-      }
-    } catch (error) {
-      setConnectionStatus('disconnected')
-    }
-  }
 
   const sendMessage = async (content: string) => {
     if (!content.trim()) return
@@ -375,29 +371,11 @@ export default function Terminal() {
   }
 
   const getStatusText = () => {
-    switch (connectionStatus) {
-      case 'connected':
-        return '● CONECTADO'
-      case 'connecting':
-        return '○ CONECTANDO...'
-      case 'disconnected':
-        return '○ DESCONECTADO'
-      default:
-        return '○ DESCONOCIDO'
-    }
+    return connected ? '● CONECTADO' : '○ DESCONECTADO'
   }
 
   const getStatusColor = () => {
-    switch (connectionStatus) {
-      case 'connected':
-        return '#00ff00'
-      case 'connecting':
-        return '#ffff00'
-      case 'disconnected':
-        return '#ff0000'
-      default:
-        return '#888888'
-    }
+    return connected ? '#00ff00' : '#ff0000'
   }
 
   const handleApiKeySubmit = () => {
