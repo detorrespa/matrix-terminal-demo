@@ -30,12 +30,12 @@ export async function POST(req: NextRequest) {
     });
     const data = await resp.json();
     if (!resp.ok) {
-      const msg = data?.error?.message || Upstream error ;
+      const msg = data?.error?.message || 'Upstream error';
       return bad(msg, 500);
     }
     return NextResponse.json(data);
   } catch (e: any) {
-    return bad(Fetch failed: , 500);
+    return bad('Fetch failed', 500);
   }
 }
 
