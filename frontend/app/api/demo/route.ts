@@ -1,98 +1,47 @@
-import { NextRequest, NextResponse } from 'next/server'
+// frontend/app/api/demo/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-export const runtime = 'edge'
-
-interface DemoRequest {
-  messages: Array<{
-    role: 'user' | 'assistant' | 'system'
-    content: string
-  }>
-  model?: string
+function bad(msg: string, code = 400) {
+  return NextResponse.json({ error: msg }, { status: code });
 }
 
 export async function POST(req: NextRequest) {
-  // Verificar que la key de demo esté configurada
-  if (!process.env.DEMO_OPENAI_API_KEY) {
-    return NextResponse.json(
-      { error: 'Demo mode is currently disabled' }, 
-      { status: 403 }
-    )
+  const KEY = process.env.DEMO_OPENAI_API_KEY;
+  if (!KEY) return bad('Demo disabled: missing DEMO_OPENAI_API_KEY', 403);
+
+  let body: any;
+  try { body = await req.json(); } catch { return bad('Invalid JSON body'); }
+
+  const { messages, model = 'gpt-4o-mini', temperature = 0.2 } = body || {};
+  if (!Array.isArray(messages) || messages.length === 0) return bad('messages required');
+
+  const headers: Record<string,string> = {
+    'Authorization': `Bearer ${KEY}`,
+    'Content-Type': 'application/json',
+  };
+  if (KEY.startsWith('sk-proj-')) {
+    const pid = process.env.OPENAI_PROJECT_ID;
+    if (!pid) return bad('Missing OPENAI_PROJECT_ID for sk-proj key', 500);
+    headers['OpenAI-Project'] = pid;
   }
 
   try {
-    const { messages, model = 'gpt-4o-mini' } = await req.json() as DemoRequest
-
-    // Validaciones de seguridad
-    if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json(
-        { error: 'Invalid messages format' }, 
-        { status: 400 }
-      )
-    }
-
-    // Limitar número de mensajes y caracteres totales
-    if (messages.length > 12) {
-      return NextResponse.json(
-        { error: 'Too many messages (max 12)' }, 
-        { status: 400 }
-      )
-    }
-
-    const totalChars = messages.reduce((sum, msg) => sum + (msg.content?.length || 0), 0)
-    if (totalChars > 2000) {
-      return NextResponse.json(
-        { error: 'Message too long (max 2000 chars total)' }, 
-        { status: 400 }
-      )
-    }
-
-    // Validar estructura de mensajes
-    for (const msg of messages) {
-      if (!msg.role || !msg.content || typeof msg.content !== 'string') {
-        return NextResponse.json(
-          { error: 'Invalid message format' }, 
-          { status: 400 }
-        )
-      }
-    }
-
-    // Llamar a OpenAI API
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.DEMO_OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.2,
-        max_tokens: 1000,
-        stream: false
-      }),
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      console.error('OpenAI API error:', data)
-      return NextResponse.json(
-        { 
-          error: data?.error?.message || 'OpenAI API error',
-          details: data?.error?.type || 'unknown'
-        }, 
-        { status: response.status }
-      )
+      headers,
+      body: JSON.stringify({ model, messages, temperature }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      const msg = data?.error?.message || `Upstream error ${resp.status}`;
+      return bad(msg, 500);
     }
-
-    // Retornar respuesta estándar de Chat Completions
-    return NextResponse.json(data)
-
-  } catch (error) {
-    console.error('Demo API error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' }, 
-      { status: 500 }
-    )
+    return NextResponse.json(data);
+  } catch (e: any) {
+    return bad(`Fetch failed: ${e?.message || e}`, 500);
   }
 }
+
+export async function GET() { return bad('Method Not Allowed', 405); }
