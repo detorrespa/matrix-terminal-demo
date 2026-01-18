@@ -41,7 +41,8 @@ export async function POST(req: NextRequest) {
     // Devuelve el payload de OpenAI tal cual
     return NextResponse.json(data);
   } catch (e: any) {
-    return bad(`Fetch failed: ${e?.message || String(e)}`, 500);
+    const msg = e?.message ?? String(e);
+    return bad(`Fetch failed: ${msg}`, 500);
   }
 }
 
