@@ -1,4 +1,4 @@
-// frontend/app/api/demo/route.ts
+﻿// frontend/app/api/demo/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   if (!Array.isArray(messages) || messages.length === 0) return bad('messages required');
 
   const headers: Record<string,string> = {
-    'Authorization': `Bearer ${KEY}`,
+    'Authorization': Bearer ,
     'Content-Type': 'application/json',
   };
   if (KEY.startsWith('sk-proj-')) {
@@ -35,13 +35,15 @@ export async function POST(req: NextRequest) {
     });
     const data = await resp.json();
     if (!resp.ok) {
-      const msg = data?.error?.message || `Upstream error ${resp.status}`;
+      const msg = data?.error?.message || Upstream error ;
       return bad(msg, 500);
     }
     return NextResponse.json(data);
   } catch (e: any) {
-    return bad(`Fetch failed: ${e?.message || e}`, 500);
+    return bad(Fetch failed: , 500);
   }
 }
 
-export async function GET() { return bad('Method Not Allowed', 405); }
+export async function GET() {
+  return bad('Method Not Allowed', 405);
+}
