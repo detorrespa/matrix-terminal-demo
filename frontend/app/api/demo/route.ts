@@ -1,29 +1,24 @@
 ﻿// frontend/app/api/demo/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function jsonResponse(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
-
 function bad(msg: string, code = 400) {
-  return jsonResponse({ error: msg }, code);
+  return NextResponse.json({ error: msg }, { status: code });
 }
 
-export async function POST(req: Request) {
-  const KEY = (globalThis as { process?: { env?: Record<string, string | undefined> } })
-    .process?.env?.DEMO_OPENAI_API_KEY;
+export async function POST(req: NextRequest) {
+  const KEY = process.env.DEMO_OPENAI_API_KEY;
   if (!KEY) return bad('Demo disabled: missing DEMO_OPENAI_API_KEY', 403);
 
   let body: any;
   try { body = await req.json(); } catch { return bad('Invalid JSON body'); }
 
-  const { messages, model = 'gpt-3.5-turbo-0125', temperature = 0.2 } = body || {};
+  const { messages, model = 'gpt-4o-mini', temperature = 0.2 } = body || {};
   if (!Array.isArray(messages) || messages.length === 0) return bad('messages required');
 
+  // Cabeceras para clave normal `sk-...`
   const headers: Record<string,string> = {
     'Authorization': `Bearer ${KEY}`,
     'Content-Type': 'application/json',
@@ -35,14 +30,18 @@ export async function POST(req: Request) {
       headers,
       body: JSON.stringify({ model, messages, temperature }),
     });
+
     const data = await resp.json();
+
     if (!resp.ok) {
-      const msg = data?.error?.message || 'Upstream error';
+      const msg = data?.error?.message || `Upstream error ${resp.status}`;
       return bad(msg, 500);
     }
-    return jsonResponse(data);
+
+    // Devuelve el payload de OpenAI tal cual
+    return NextResponse.json(data);
   } catch (e: any) {
-    return bad('Fetch failed', 500);
+    return bad(`Fetch failed: ${e?.message || String(e)}`, 500);
   }
 }
 
