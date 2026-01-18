@@ -14,18 +14,13 @@ export async function POST(req: NextRequest) {
   let body: any;
   try { body = await req.json(); } catch { return bad('Invalid JSON body'); }
 
-  const { messages, model = 'gpt-4o-mini', temperature = 0.2 } = body || {};
+  const { messages, model = 'gpt-3.5-turbo-0125', temperature = 0.2 } = body || {};
   if (!Array.isArray(messages) || messages.length === 0) return bad('messages required');
 
   const headers: Record<string,string> = {
-    'Authorization': Bearer ,
+    'Authorization': `Bearer ${KEY}`,
     'Content-Type': 'application/json',
   };
-  if (KEY.startsWith('sk-proj-')) {
-    const pid = process.env.OPENAI_PROJECT_ID;
-    if (!pid) return bad('Missing OPENAI_PROJECT_ID for sk-proj key', 500);
-    headers['OpenAI-Project'] = pid;
-  }
 
   try {
     const resp = await fetch('https://api.openai.com/v1/chat/completions', {
