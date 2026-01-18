@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// noop: touch to trigger deploy
 
 function bad(msg: string, code = 400) {
   return NextResponse.json({ error: msg }, { status: code });
